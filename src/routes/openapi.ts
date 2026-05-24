@@ -3,11 +3,17 @@ import { Hono } from "hono";
 import { z } from "zod";
 
 import {
+  createOrderRequestSchema,
   createProductRequestSchema,
   errorResponseSchema,
   healthResponseSchema,
+  listOrdersResponseSchema,
   listProductsResponseSchema,
+  orderResponseSchema,
   productResponseSchema,
+  saleMessageRequestSchema,
+  saleMessageResponseSchema,
+  updateOrderRequestSchema,
 } from "../dtos/index.ts";
 
 const openApiSchemaOptions = { target: "openapi-3.0" } as const;
@@ -136,14 +142,361 @@ const openApiDocument = {
         tags: ["Products"],
       },
     },
+    "/orders": {
+      get: {
+        operationId: "listOrders",
+        responses: {
+          "200": {
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ListOrdersResponse",
+                },
+              },
+            },
+            description: "Orders list",
+          },
+          "502": {
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+            description: "Dependency failure",
+          },
+        },
+        summary: "List orders",
+        tags: ["Orders"],
+      },
+      post: {
+        operationId: "createOrder",
+        requestBody: {
+          content: {
+            "application/json": {
+              schema: {
+                $ref: "#/components/schemas/CreateOrderRequest",
+              },
+            },
+          },
+          required: true,
+        },
+        responses: {
+          "201": {
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/Order",
+                },
+              },
+            },
+            description: "Order created",
+          },
+          "400": {
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+            description: "Invalid request body",
+          },
+          "502": {
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+            description: "Dependency failure",
+          },
+        },
+        summary: "Create order",
+        tags: ["Orders"],
+      },
+    },
+    "/orders/{id}": {
+      delete: {
+        operationId: "deleteOrder",
+        parameters: [
+          {
+            in: "path",
+            name: "id",
+            required: true,
+            schema: {
+              format: "uuid",
+              type: "string",
+            },
+          },
+        ],
+        responses: {
+          "200": {
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/Order",
+                },
+              },
+            },
+            description: "Order deleted",
+          },
+          "404": {
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+            description: "Order not found",
+          },
+        },
+        summary: "Delete order",
+        tags: ["Orders"],
+      },
+      get: {
+        operationId: "getOrder",
+        parameters: [
+          {
+            in: "path",
+            name: "id",
+            required: true,
+            schema: {
+              format: "uuid",
+              type: "string",
+            },
+          },
+        ],
+        responses: {
+          "200": {
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/Order",
+                },
+              },
+            },
+            description: "Order",
+          },
+          "404": {
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+            description: "Order not found",
+          },
+        },
+        summary: "Get order",
+        tags: ["Orders"],
+      },
+      patch: {
+        operationId: "updateOrder",
+        parameters: [
+          {
+            in: "path",
+            name: "id",
+            required: true,
+            schema: {
+              format: "uuid",
+              type: "string",
+            },
+          },
+        ],
+        requestBody: {
+          content: {
+            "application/json": {
+              schema: {
+                $ref: "#/components/schemas/UpdateOrderRequest",
+              },
+            },
+          },
+          required: true,
+        },
+        responses: {
+          "200": {
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/Order",
+                },
+              },
+            },
+            description: "Order updated",
+          },
+          "400": {
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+            description: "Invalid request body",
+          },
+          "404": {
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+            description: "Order not found",
+          },
+        },
+        summary: "Update order",
+        tags: ["Orders"],
+      },
+    },
+    "/sales": {
+      post: {
+        operationId: "startSaleSession",
+        requestBody: {
+          content: {
+            "application/json": {
+              schema: {
+                $ref: "#/components/schemas/SaleMessageRequest",
+              },
+            },
+          },
+          required: true,
+        },
+        responses: {
+          "201": {
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/SaleMessageResponse",
+                },
+              },
+            },
+            description: "Sale session started with an agent response",
+          },
+          "400": {
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+            description: "Invalid request body",
+          },
+          "502": {
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+            description: "Dependency failure",
+          },
+        },
+        summary: "Start sale session",
+        tags: ["Sales"],
+      },
+    },
+    "/sales/{sessionId}/messages": {
+      post: {
+        operationId: "continueSaleSession",
+        parameters: [
+          {
+            in: "path",
+            name: "sessionId",
+            required: true,
+            schema: {
+              format: "uuid",
+              type: "string",
+            },
+          },
+        ],
+        requestBody: {
+          content: {
+            "application/json": {
+              schema: {
+                $ref: "#/components/schemas/SaleMessageRequest",
+              },
+            },
+          },
+          required: true,
+        },
+        responses: {
+          "200": {
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/SaleMessageResponse",
+                },
+              },
+            },
+            description: "Agent response",
+          },
+          "400": {
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+            description: "Invalid request body",
+          },
+          "404": {
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+            description: "Sale session not found",
+          },
+          "412": {
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+            description: "Sale session already ended",
+          },
+          "502": {
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+            description: "Dependency failure",
+          },
+        },
+        summary: "Continue sale session",
+        tags: ["Sales"],
+      },
+    },
   },
   components: {
     schemas: {
+      CreateOrderRequest: z.toJSONSchema(createOrderRequestSchema, openApiSchemaOptions),
       CreateProductRequest: z.toJSONSchema(createProductRequestSchema, openApiSchemaOptions),
       ErrorResponse: z.toJSONSchema(errorResponseSchema, openApiSchemaOptions),
       HealthResponse: z.toJSONSchema(healthResponseSchema, openApiSchemaOptions),
+      ListOrdersResponse: z.toJSONSchema(listOrdersResponseSchema, openApiSchemaOptions),
       ListProductsResponse: z.toJSONSchema(listProductsResponseSchema, openApiSchemaOptions),
+      Order: z.toJSONSchema(orderResponseSchema, openApiSchemaOptions),
       Product: z.toJSONSchema(productResponseSchema, openApiSchemaOptions),
+      SaleMessageRequest: z.toJSONSchema(saleMessageRequestSchema, openApiSchemaOptions),
+      SaleMessageResponse: z.toJSONSchema(saleMessageResponseSchema, openApiSchemaOptions),
+      UpdateOrderRequest: z.toJSONSchema(updateOrderRequestSchema, openApiSchemaOptions),
     },
   },
 } as const;

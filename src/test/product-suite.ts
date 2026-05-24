@@ -2,10 +2,11 @@ import { beforeEach } from "bun:test";
 
 import type { CreateEmbedding } from "../adpters/ai.ts";
 import { productEmbeddingDimensions } from "../entities/index.ts";
-import { NewProductRepository } from "../repositories/index.ts";
+import { NewOrderRepository, NewProductRepository } from "../repositories/index.ts";
 import { NewRoutes } from "../routes/index.ts";
-import { NewProductService, type ProductAi } from "../services/index.ts";
+import { NewOrderService, NewProductService, type ProductAi } from "../services/index.ts";
 import { failure, ok, type Result } from "../utils/result.ts";
+import { FakeSaleService } from "./fake-sale-service.ts";
 import { type IntegrationSuite, NewIntegrationSuite } from "./integration-suite.ts";
 
 export const createProductPayload = {
@@ -94,8 +95,10 @@ function newProductApp(integrationSuite: IntegrationSuite): {
 } {
   const ai = new FakeProductAi();
   const productRepository = NewProductRepository(integrationSuite.db());
+  const orderRepository = NewOrderRepository(integrationSuite.db());
   const productService = NewProductService(ai, productRepository);
-  const app = NewRoutes(productService);
+  const orderService = NewOrderService(orderRepository);
+  const app = NewRoutes(productService, orderService, new FakeSaleService());
 
   return { ai, app };
 }
@@ -106,7 +109,7 @@ export function NewProductRouteTestSuite(): ProductRouteTestSuite {
   let app: ReturnType<typeof NewRoutes> | undefined;
 
   beforeEach(async () => {
-    await integrationSuite.truncateTables(["products"]);
+    await integrationSuite.truncateTables(["sale_messages", "sale_sessions", "orders", "products"]);
 
     const testApp = newProductApp(integrationSuite);
 
