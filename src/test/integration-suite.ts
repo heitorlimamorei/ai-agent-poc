@@ -14,6 +14,8 @@ const migrationFiles = [
   "0001_add_product_table.sql",
   "0002_add_product_embedding.sql",
   "0003_use_openai_product_embedding.sql",
+  "0004_peaceful_songbird.sql",
+  "0005_giant_swordsman.sql",
 ];
 
 export interface IntegrationSuite {
@@ -26,7 +28,6 @@ export interface IntegrationSuite {
 let container: StartedTestContainer | undefined;
 let sqlClient: Sql | undefined;
 let database: PostgresJsDatabase | undefined;
-let hooksRegistered = false;
 
 function buildDatabaseUrl(startedContainer: StartedTestContainer): string {
   return `postgres://${postgresUser}:${postgresPassword}@${startedContainer.getHost()}:${startedContainer
@@ -93,12 +94,6 @@ async function stopInfrastructure(): Promise<void> {
 }
 
 function registerGlobalHooks(): void {
-  if (hooksRegistered) {
-    return;
-  }
-
-  hooksRegistered = true;
-
   beforeAll(startInfrastructure);
   afterAll(stopInfrastructure);
 }
@@ -110,7 +105,7 @@ async function truncateTables(tableNames: readonly string[]): Promise<void> {
 
   const tables = tableNames.map((tableName) => `"${tableName}"`).join(", ");
 
-  await requireSqlClient().unsafe(`truncate table ${tables} restart identity`);
+  await requireSqlClient().unsafe(`truncate table ${tables} restart identity cascade`);
 }
 
 async function countRows(tableName: string): Promise<number> {

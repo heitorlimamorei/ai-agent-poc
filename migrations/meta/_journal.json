@@ -29,6 +29,20 @@
       "when": 1779631955000,
       "tag": "0003_use_openai_product_embedding",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1779662357432,
+      "tag": "0004_peaceful_songbird",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1779663734980,
+      "tag": "0005_giant_swordsman",
+      "breakpoints": true
     }
   ]
 }
