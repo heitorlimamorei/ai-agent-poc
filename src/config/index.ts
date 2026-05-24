@@ -47,8 +47,8 @@ export const AppConfig = z.object({
   DB_MAX_IDLE_CONNECTIONS: positiveIntSchema.default(5),
   HOSTNAME: z.string().min(1).default("0.0.0.0"),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  OPENAI_API_KEY: z.string().min(1),
   PORT: portSchema,
-  VERTEXAI_API_KEY: z.string().min(1),
 });
 
 export type AppConfig = z.infer<typeof AppConfig>;

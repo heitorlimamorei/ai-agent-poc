@@ -2,13 +2,13 @@ import { sql } from "drizzle-orm";
 import {
   char,
   check,
-  halfvec,
   index,
   pgTable,
   real,
   text,
   uuid,
   varchar,
+  vector,
 } from "drizzle-orm/pg-core";
 
 export const products = pgTable(
@@ -20,12 +20,12 @@ export const products = pgTable(
     adValue: real("ad_value").notNull(),
     description: text("description").notNull(),
     photoUrl: varchar("photo_url", { length: 2048 }).notNull(),
-    embedding: halfvec("embedding", { dimensions: 3072 }),
+    embedding: vector("embedding", { dimensions: 1536 }),
   },
   (table) => [
     check("products_country_iso_alpha_2_check", sql`${table.country} ~ '^[A-Z]{2}$'`),
     index("products_embedding_idx")
-      .using("hnsw", table.embedding.op("halfvec_cosine_ops"))
+      .using("hnsw", table.embedding.op("vector_cosine_ops"))
       .where(sql`${table.embedding} is not null`),
   ],
 );

@@ -13,6 +13,7 @@ const migrationFiles = [
   "0000_enable_pgvector.sql",
   "0001_add_product_table.sql",
   "0002_add_product_embedding.sql",
+  "0003_use_openai_product_embedding.sql",
 ];
 
 export interface IntegrationSuite {

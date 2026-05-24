@@ -1,4 +1,4 @@
-import { createVertex, type GoogleVertexProvider } from "@ai-sdk/google-vertex";
+import { createOpenAI, type OpenAIProvider } from "@ai-sdk/openai";
 import {
   type Agent,
   type Embedding,
@@ -15,8 +15,8 @@ import {
 import type { AppConfig } from "../config/index.ts";
 import { err, ok, type Result } from "../utils/result.ts";
 
-const gemini3FlashModelId = "gemini-3-flash-preview";
-const geminiEmbeddingModelId = "gemini-embedding-001";
+const openAiChatModelId = "gpt-4.1-mini";
+const openAiEmbeddingModelId = "text-embedding-3-small";
 
 type EmptyTools = Record<string, never>;
 
@@ -35,7 +35,7 @@ export type CreateEmbedding = (input: string) => Promise<Result<Embedding>>;
 
 export interface VercelAiModels {
   readonly embedding: EmbeddingModel;
-  readonly gemini3Flash: LanguageModel;
+  readonly chat: LanguageModel;
 }
 
 export interface VercelAiAdapter {
@@ -43,18 +43,18 @@ export interface VercelAiAdapter {
   readonly generateText: typeof generateText;
   readonly models: VercelAiModels;
   readonly newAgent: NewAgent;
-  readonly provider: GoogleVertexProvider;
+  readonly provider: OpenAIProvider;
   readonly streamText: typeof streamText;
 }
 
 export function NewVercelAiAdapter(config: AppConfig): VercelAiAdapter {
-  const provider = createVertex({
-    apiKey: config.VERTEXAI_API_KEY,
+  const provider = createOpenAI({
+    apiKey: config.OPENAI_API_KEY,
   });
 
   const models = {
-    embedding: provider.embeddingModel(geminiEmbeddingModelId),
-    gemini3Flash: provider(gemini3FlashModelId),
+    chat: provider.chat(openAiChatModelId),
+    embedding: provider.embeddingModel(openAiEmbeddingModelId),
   } satisfies VercelAiAdapter["models"];
 
   return {
@@ -80,7 +80,7 @@ export function NewVercelAiAdapter(config: AppConfig): VercelAiAdapter {
     newAgent<CALL_OPTIONS = never, TOOLS extends ToolSet = EmptyTools>(
       options: NewAgentOptions<CALL_OPTIONS, TOOLS> = {},
     ): Agent<CALL_OPTIONS, TOOLS> {
-      const { model = models.gemini3Flash, ...settings } = options;
+      const { model = models.chat, ...settings } = options;
 
       return new ToolLoopAgent({
         ...settings,

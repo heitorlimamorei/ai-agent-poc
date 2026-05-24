@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { products } from "../database/schema.ts";
 import { err, ok, type Result } from "../utils/result.ts";
 
-export const productEmbeddingDimensions = 3072;
+export const productEmbeddingDimensions = 1536;
 
 export const productEmbeddingSchema = z.array(z.number()).length(productEmbeddingDimensions);
 
