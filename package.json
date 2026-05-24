@@ -1,0 +1,38 @@
+{
+  "name": "ai-agent-poc",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "check": "bun run typecheck && bun run lint && bun run format:check",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "dev": "bun --watch index.ts",
+    "format": "biome check --write .",
+    "format:check": "biome check .",
+    "lint": "eslint . --max-warnings 0",
+    "start": "bun run index.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.15",
+    "@eslint/js": "^10.0.1",
+    "@types/bun": "latest",
+    "drizzle-kit": "^0.31.10",
+    "eslint": "^10.4.0",
+    "testcontainers": "^12.0.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.4"
+  },
+  "dependencies": {
+    "@ai-sdk/google-vertex": "^4.0.134",
+    "@hono/swagger-ui": "^0.6.1",
+    "ai": "^6.0.190",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.12.21",
+    "postgres": "^3.4.9",
+    "zod": "^4.4.3"
+  }
+}
