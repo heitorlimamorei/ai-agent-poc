@@ -6,6 +6,7 @@ import {
   createProductRequestSchema,
   errorResponseSchema,
   healthResponseSchema,
+  listProductsResponseSchema,
   productResponseSchema,
 } from "../dtos/index.ts";
 
@@ -38,6 +39,55 @@ const openApiDocument = {
       },
     },
     "/products": {
+      get: {
+        operationId: "listProducts",
+        parameters: [
+          {
+            description:
+              "Semantic search query. When present, returns the top 5 most similar products.",
+            in: "query",
+            name: "search",
+            required: false,
+            schema: {
+              type: "string",
+            },
+          },
+        ],
+        responses: {
+          "200": {
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ListProductsResponse",
+                },
+              },
+            },
+            description: "Products list",
+          },
+          "400": {
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+            description: "Invalid query",
+          },
+          "502": {
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+            description: "Dependency failure",
+          },
+        },
+        summary: "List or search products",
+        tags: ["Products"],
+      },
       post: {
         operationId: "createProduct",
         requestBody: {
@@ -92,6 +142,7 @@ const openApiDocument = {
       CreateProductRequest: z.toJSONSchema(createProductRequestSchema, openApiSchemaOptions),
       ErrorResponse: z.toJSONSchema(errorResponseSchema, openApiSchemaOptions),
       HealthResponse: z.toJSONSchema(healthResponseSchema, openApiSchemaOptions),
+      ListProductsResponse: z.toJSONSchema(listProductsResponseSchema, openApiSchemaOptions),
       Product: z.toJSONSchema(productResponseSchema, openApiSchemaOptions),
     },
   },

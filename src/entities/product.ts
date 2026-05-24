@@ -20,6 +20,10 @@ export const productWithEmbeddingSchema = productSchema.extend({
   embedding: productEmbeddingSchema.nullable(),
 });
 
+export const productSearchResultSchema = productSchema.extend({
+  score: z.number(),
+});
+
 export const newProductSchema = productSchema.omit({ id: true });
 
 export const newProductWithEmbeddingSchema = newProductSchema.extend({
@@ -27,6 +31,7 @@ export const newProductWithEmbeddingSchema = newProductSchema.extend({
 });
 
 export type Product = z.infer<typeof productSchema>;
+export type ProductSearchResult = z.infer<typeof productSearchResultSchema>;
 export type ProductWithEmbedding = z.infer<typeof productWithEmbeddingSchema>;
 export type NewProduct = z.infer<typeof newProductSchema>;
 export type NewProductWithEmbedding = z.infer<typeof newProductWithEmbeddingSchema>;
@@ -37,6 +42,10 @@ export function productEmbeddingText(product: NewProduct): string {
   const description = product.description.trim().replaceAll(/\s+/g, " ");
 
   return [`type: product`, `country: ${product.country}`, `description: ${description}`].join("\n");
+}
+
+export function productSearchEmbeddingText(query: string): string {
+  return [`type: product`, `query: ${query.trim().replaceAll(/\s+/g, " ")}`].join("\n");
 }
 
 function invalidProductInput(message: string, error: z.ZodError): Result<never> {
@@ -64,6 +73,16 @@ export function productFromRecord(record: unknown): Result<Product> {
 
   if (!result.success) {
     return invalidProductRecord("Invalid product record", result.error);
+  }
+
+  return ok(result.data);
+}
+
+export function productSearchResultFromRecord(record: unknown): Result<ProductSearchResult> {
+  const result = productSearchResultSchema.safeParse(record);
+
+  if (!result.success) {
+    return invalidProductRecord("Invalid product search result record", result.error);
   }
 
   return ok(result.data);

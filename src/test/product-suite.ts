@@ -22,6 +22,8 @@ export interface ProductRouteTestSuite {
   readonly ai: () => FakeProductAi;
   readonly countProducts: () => Promise<number>;
   readonly countProductsWithEmbedding: () => Promise<number>;
+  readonly getProducts: () => Promise<Response>;
+  readonly getProductsSearch: (search: string) => Promise<Response>;
   readonly postCreateProduct: (body: unknown) => Promise<Response>;
   readonly postCreateProductJson: (body: string) => Promise<Response>;
   readonly postCreateProductSilencingErrors: (body: unknown) => Promise<Response>;
@@ -29,6 +31,10 @@ export interface ProductRouteTestSuite {
 
 export function newEmbedding(value: number): number[] {
   return Array.from({ length: productEmbeddingDimensions }, () => value);
+}
+
+export function newEmbeddingWithFirstValues(values: readonly number[]): number[] {
+  return Array.from({ length: productEmbeddingDimensions }, (_, index) => values[index] ?? 0);
 }
 
 export class FakeProductAi implements ProductAi {
@@ -146,6 +152,14 @@ export function NewProductRouteTestSuite(): ProductRouteTestSuite {
       }
 
       return Number.parseInt(row.count, 10);
+    },
+    async getProducts(): Promise<Response> {
+      return requireSuiteValue(app, "Product app").request("/products");
+    },
+    async getProductsSearch(search: string): Promise<Response> {
+      const searchParams = new URLSearchParams({ search });
+
+      return requireSuiteValue(app, "Product app").request(`/products?${searchParams.toString()}`);
     },
     postCreateProduct,
     postCreateProductJson,
