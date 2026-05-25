@@ -10,7 +10,6 @@ import {
   type FailureCode,
   failure,
   isFailure,
-  type Result,
 } from "../utils/result.ts";
 
 const httpStatusByFailureCode = {
@@ -144,20 +143,6 @@ export function jsonHttpException(
   error: HTTPException,
 ): Response {
   return context.json(errorResponseFromHttpException(error), error.status);
-}
-
-export function jsonResult<Success>(
-  context: Context,
-  result: Result<Success>,
-  status: ContentfulStatusCode = 200,
-): Response {
-  const [data, error] = result;
-
-  if (error !== null) {
-    return jsonFailure(context, error);
-  }
-
-  return context.json(data, status);
 }
 
 export const errorHandler: ErrorHandler = (error, context): Response => {

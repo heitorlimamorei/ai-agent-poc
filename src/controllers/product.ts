@@ -5,8 +5,11 @@ import {
   listProductsQuerySchema,
 } from "../dtos/index.ts";
 import type { ProductService } from "../services/index.ts";
-import { jsonResult } from "./errors.ts";
-import { parseJsonRequestInput, parseRequestInput } from "./utils.ts";
+import {
+  jsonResult,
+  parseJsonRequestInput,
+  parseRequestInput,
+} from "./utils.ts";
 
 export interface ProductController {
   readonly create: (context: Context) => Promise<Response>;

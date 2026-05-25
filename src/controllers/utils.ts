@@ -1,7 +1,9 @@
 import type { Context } from "hono";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { z } from "zod";
 
 import { err, ok, type Result } from "../utils/result.ts";
+import { jsonFailure } from "./errors.ts";
 
 export async function parseJsonBody(
   context: Context,
@@ -52,4 +54,18 @@ export function parseRequestInput<Schema extends z.ZodType>(
   }
 
   return ok(parsedInput.data);
+}
+
+export function jsonResult<Success>(
+  context: Context,
+  result: Result<Success>,
+  status: ContentfulStatusCode = 200,
+): Response {
+  const [data, error] = result;
+
+  if (error !== null) {
+    return jsonFailure(context, error);
+  }
+
+  return context.json(data, status);
 }
