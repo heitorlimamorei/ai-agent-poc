@@ -29,7 +29,9 @@ const httpStatusByFailureCode = {
   UNKNOWN: 500,
 } satisfies Record<FailureCode, ContentfulStatusCode>;
 
-export function failureCodeFromHttpStatus(status: ContentfulStatusCode): FailureCode {
+export function failureCodeFromHttpStatus(
+  status: ContentfulStatusCode,
+): FailureCode {
   if (status === 400 || status === 422) {
     return "INVALID_ARGUMENT";
   }
@@ -99,7 +101,9 @@ export function errorResponseFromFailure(error: Failure): ErrorResponse {
   };
 }
 
-export function errorResponseFromHttpException(error: HTTPException): ErrorResponse {
+export function errorResponseFromHttpException(
+  error: HTTPException,
+): ErrorResponse {
   const status: ContentfulStatusCode = error.status;
   const message = status < 500 ? error.message : "Internal server error";
 
@@ -129,10 +133,16 @@ export function jsonFailure(context: Context, error: Failure): Response {
     console.error(error);
   }
 
-  return context.json(errorResponseFromFailure(error), failureToHttpStatus(error));
+  return context.json(
+    errorResponseFromFailure(error),
+    failureToHttpStatus(error),
+  );
 }
 
-export function jsonHttpException(context: Context, error: HTTPException): Response {
+export function jsonHttpException(
+  context: Context,
+  error: HTTPException,
+): Response {
   return context.json(errorResponseFromHttpException(error), error.status);
 }
 

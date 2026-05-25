@@ -1,74 +1,52 @@
 import type { Context } from "hono";
-import { z } from "zod";
 
-import { createProductRequestSchema, listProductsQuerySchema } from "../dtos/index.ts";
+import {
+  createProductRequestSchema,
+  listProductsQuerySchema,
+} from "../dtos/index.ts";
 import type { ProductService } from "../services/index.ts";
-import { err } from "../utils/result.ts";
 import { jsonResult } from "./errors.ts";
+import { parseJsonRequestInput, parseRequestInput } from "./utils.ts";
 
 export interface ProductController {
   readonly create: (context: Context) => Promise<Response>;
   readonly list: (context: Context) => Promise<Response>;
 }
 
-export function NewProductController(productService: ProductService): ProductController {
+export function NewProductController(
+  productService: ProductService,
+): ProductController {
   async function create(context: Context): Promise<Response> {
-    let body: unknown;
+    const parsedBody = await parseJsonRequestInput(
+      context,
+      createProductRequestSchema,
+      "Invalid product body",
+    );
 
-    try {
-      body = await context.req.json();
-    } catch (error) {
-      return jsonResult(
-        context,
-        err({
-          cause: error,
-          code: "INVALID_ARGUMENT",
-          expose: true,
-          message: "Invalid JSON body",
-          origin: "TRANSPORT",
-        }),
-      );
+    if (parsedBody[1] !== null) {
+      return jsonResult(context, parsedBody);
     }
 
-    const parsedBody = createProductRequestSchema.safeParse(body);
-
-    if (!parsedBody.success) {
-      return jsonResult(
-        context,
-        err({
-          cause: parsedBody.error,
-          code: "INVALID_ARGUMENT",
-          details: z.treeifyError(parsedBody.error),
-          expose: true,
-          message: "Invalid product body",
-          origin: "INPUT",
-        }),
-      );
-    }
-
-    return jsonResult(context, await productService.create(parsedBody.data), 201);
+    return jsonResult(context, await productService.create(parsedBody[0]), 201);
   }
 
   async function list(context: Context): Promise<Response> {
-    const parsedQuery = listProductsQuerySchema.safeParse({
-      search: context.req.query("search"),
-    });
+    const parsedQuery = parseRequestInput(
+      listProductsQuerySchema,
+      {
+        search: context.req.query("search"),
+      },
+      "Invalid product query",
+    );
 
-    if (!parsedQuery.success) {
-      return jsonResult(
-        context,
-        err({
-          cause: parsedQuery.error,
-          code: "INVALID_ARGUMENT",
-          details: z.treeifyError(parsedQuery.error),
-          expose: true,
-          message: "Invalid product query",
-          origin: "INPUT",
-        }),
-      );
+    if (parsedQuery[1] !== null) {
+      return jsonResult(context, parsedQuery);
     }
 
-    return jsonResult(context, await productService.list(parsedQuery.data.search));
+    return jsonResult(
+      context,
+      await productService.list(parsedQuery[0].search),
+    );
   }
 
   return { create, list };
