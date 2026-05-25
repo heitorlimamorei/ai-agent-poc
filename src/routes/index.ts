@@ -10,6 +10,7 @@ import {
   notFoundHandler,
 } from "../controllers/index.ts";
 import type { OrderService, ProductService, SaleService } from "../services/index.ts";
+import { NewSellerVoicePlaygroundRouter } from "../voice/index.ts";
 import { NewOpenApiRouter } from "./openapi.ts";
 import { NewOrderRouter } from "./order.ts";
 import { NewProductRouter } from "./product.ts";
@@ -42,6 +43,7 @@ export function NewRoutes(
   app.route("/products", NewProductRouter(productController));
   app.route("/orders", NewOrderRouter(orderController));
   app.route("/sales", NewSaleRouter(saleController));
+  app.route("/", NewSellerVoicePlaygroundRouter());
 
   return app;
 }

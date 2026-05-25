@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { AiToolDefinition, AiToolKit } from "../toolkit/index.ts";
+import type { AiToolDefinition, AiToolExecutionResult, AiToolKit } from "../toolkit/index.ts";
 
 export interface RealtimeFunctionTool {
   readonly description: string;
@@ -14,11 +14,7 @@ export interface RealtimeToolCall {
   readonly name: string;
 }
 
-export interface RealtimeToolExecutionResult {
-  readonly input: unknown;
-  readonly output: unknown;
-  readonly toolName: string;
-}
+export type RealtimeToolExecutionResult = AiToolExecutionResult;
 
 export function toRealtimeTool(definition: AiToolDefinition): RealtimeFunctionTool {
   return {

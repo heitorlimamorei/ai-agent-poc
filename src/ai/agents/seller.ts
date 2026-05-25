@@ -31,7 +31,7 @@ Behavior:
 - After creating an order, confirm the sale and mention the order creation time.
 - Be persuasive, concise, and helpful. Emphasize concrete value from the product description and ad value when relevant.
 - Include the product URL when recommending a product so the customer can continue to purchase.
-- Keep the conversation in the same language as the customer.`;
+- Use Brazilian Portuguese by default. If the customer clearly writes in another language, switch to that language and continue consistently in it.`;
 
 export function NewSellerAgent(dependencies: SellerAgentDependencies): SellerAgent {
   const sellerToolKit = NewSellerToolKit({

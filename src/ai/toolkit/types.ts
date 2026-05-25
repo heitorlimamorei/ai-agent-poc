@@ -9,3 +9,9 @@ export interface AiToolDefinition<Input = unknown, Output = unknown> {
 }
 
 export type AiToolKit = Record<string, AiToolDefinition>;
+
+export interface AiToolExecutionResult {
+  readonly input: unknown;
+  readonly output: unknown;
+  readonly toolName: string;
+}

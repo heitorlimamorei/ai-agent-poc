@@ -1,38 +1,10 @@
 import { z } from "zod";
 
+import { durationPattern, durationToSeconds } from "../utils/duration.ts";
+
 const portSchema = z.coerce.number().int().min(1).max(65_535).default(3000);
 const positiveIntSchema = z.coerce.number().int().min(1);
-const durationPattern = /^(\d+)(ms|s|m|h)$/u;
-
-function durationToSeconds(value: string): number {
-  const match = durationPattern.exec(value);
-
-  if (match === null) {
-    throw new Error(`Invalid duration: ${value}`);
-  }
-
-  const amountText = match[1];
-  const unit = match[2];
-
-  if (amountText === undefined || unit === undefined) {
-    throw new Error(`Invalid duration: ${value}`);
-  }
-
-  const amount = Number.parseInt(amountText, 10);
-
-  switch (unit) {
-    case "ms":
-      return Math.ceil(amount / 1000);
-    case "s":
-      return amount;
-    case "m":
-      return amount * 60;
-    case "h":
-      return amount * 60 * 60;
-  }
-
-  throw new Error(`Invalid duration unit: ${unit}`);
-}
+const voiceAudioFormatSchema = z.enum(["audio/pcm", "audio/pcma", "audio/pcmu"]);
 
 const durationSecondsSchema = z
   .string()
@@ -48,7 +20,10 @@ export const AppConfig = z.object({
   HOSTNAME: z.string().min(1).default("0.0.0.0"),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   OPENAI_API_KEY: z.string().min(1),
+  OPENAI_REALTIME_MODEL: z.string().min(1).default("gpt-realtime"),
+  OPENAI_REALTIME_VOICE: z.string().min(1).default("marin"),
   PORT: portSchema,
+  VOICE_AUDIO_FORMAT: voiceAudioFormatSchema.default("audio/pcmu"),
 });
 
 export type AppConfig = z.infer<typeof AppConfig>;
