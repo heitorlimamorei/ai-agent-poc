@@ -17,6 +17,7 @@ const migrationFiles = [
   "0004_peaceful_songbird.sql",
   "0005_giant_swordsman.sql",
   "0006_add_sale_memory_episodes.sql",
+  "0007_add_sale_memory_confidence.sql",
 ];
 
 export interface IntegrationSuite {

@@ -125,6 +125,46 @@ function toolCallsFromResult(
   return toolCalls;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function clampConfidence(value: number): number {
+  return Math.min(1, Math.max(0, Number(value.toFixed(2))));
+}
+
+function isClarificationResponse(text: string): boolean {
+  return /poderia confirmar|qual .* deseja|quer que eu ajude|se sim|deseja confirmar/i.test(text);
+}
+
+function calculateEpisodeConfidence(input: {
+  readonly assistantText: string;
+  readonly orderId: string | null;
+  readonly toolCalls: readonly SaleMemoryToolCall[];
+}): number {
+  let confidence = 0.35;
+
+  if (input.toolCalls.length > 0) {
+    confidence += 0.2;
+  }
+
+  if (
+    input.toolCalls.some((toolCall) => isRecord(toolCall.output) && toolCall.output["ok"] === true)
+  ) {
+    confidence += 0.2;
+  }
+
+  if (input.orderId !== null) {
+    confidence += 0.25;
+  }
+
+  if (isClarificationResponse(input.assistantText)) {
+    confidence -= 0.2;
+  }
+
+  return clampConfidence(confidence);
+}
+
 function memorySystemMessage(episodes: readonly SaleMemoryEpisodeSearchResult[]): ModelMessage {
   const memoryLines = episodes.map((episode, index) => {
     const orderStatus =
@@ -133,7 +173,7 @@ function memorySystemMessage(episodes: readonly SaleMemoryEpisodeSearchResult[])
     const toolNames = [...new Set(episode.toolCalls.map((toolCall) => toolCall.toolName))];
 
     return [
-      `Episodio ${episodeNumber} - similaridade ${episode.score.toFixed(2)} (${orderStatus})`,
+      `Episodio ${episodeNumber} - similaridade ${episode.score.toFixed(2)} - confianca ${episode.confidence.toFixed(2)} (${orderStatus})`,
       `Cliente: ${compactMemoryText(episode.userMessage)}`,
       `Agente: ${compactMemoryText(episode.assistantResponse)}`,
       `Ferramentas: ${toolNames.length === 0 ? "nenhuma" : toolNames.join(", ")}`,
@@ -188,6 +228,11 @@ export function NewSaleService(dependencies: SaleServiceDependencies): SaleServi
   ): Promise<void> {
     const episode = {
       assistantResponse: assistantText,
+      confidence: calculateEpisodeConfidence({
+        assistantText,
+        orderId,
+        toolCalls,
+      }),
       orderId,
       sessionId,
       toolCalls: [...toolCalls],

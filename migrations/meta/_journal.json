@@ -50,6 +50,13 @@
       "when": 1779730084571,
       "tag": "0006_add_sale_memory_episodes",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1779731822277,
+      "tag": "0007_add_sale_memory_confidence",
+      "breakpoints": true
     }
   ]
 }

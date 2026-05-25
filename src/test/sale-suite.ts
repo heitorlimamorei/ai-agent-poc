@@ -26,7 +26,9 @@ export interface SaleRouteTestSuite {
   readonly countSaleSessions: () => Promise<number>;
   readonly createProduct: () => Promise<string>;
   readonly getEndedSessions: () => Promise<{ endedAt: string | null; orderId: string | null }[]>;
-  readonly getSaleMemoryEpisodes: () => Promise<{ orderId: string | null; toolCalls: unknown }[]>;
+  readonly getSaleMemoryEpisodes: () => Promise<
+    { confidence: number; orderId: string | null; toolCalls: unknown }[]
+  >;
   readonly postSaleMessage: (sessionId: string, message: string) => Promise<Response>;
   readonly postStartSale: (message: string) => Promise<Response>;
 }
@@ -200,9 +202,13 @@ export function NewSaleRouteTestSuite(): SaleRouteTestSuite {
         from sale_sessions
       `;
     },
-    async getSaleMemoryEpisodes(): Promise<{ orderId: string | null; toolCalls: unknown }[]> {
-      return await integrationSuite.sql()<{ orderId: string | null; toolCalls: unknown }[]>`
-        select order_id as "orderId", tool_calls as "toolCalls"
+    async getSaleMemoryEpisodes(): Promise<
+      { confidence: number; orderId: string | null; toolCalls: unknown }[]
+    > {
+      return await integrationSuite.sql()<
+        { confidence: number; orderId: string | null; toolCalls: unknown }[]
+      >`
+        select confidence, order_id as "orderId", tool_calls as "toolCalls"
         from sale_memory_episodes
         order by created_at
       `;

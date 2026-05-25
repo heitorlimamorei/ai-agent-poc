@@ -1,4 +1,4 @@
-import { ne } from "drizzle-orm";
+import { and, gte, ne } from "drizzle-orm";
 import { cosineDistance } from "drizzle-orm/sql/functions/vector";
 
 import type { DrizzleDatabase } from "../adpters/drizzle.ts";
@@ -17,6 +17,7 @@ import { saleDependencyFailure } from "./sale-shared.ts";
 export interface SearchSaleMemoryEpisodesOptions {
   readonly excludeSessionId?: string;
   readonly limit?: number;
+  readonly minConfidence?: number;
 }
 
 export interface SaleMemoryRepository {
@@ -30,6 +31,7 @@ export interface SaleMemoryRepository {
 export function NewSaleMemoryRepository(db: DrizzleDatabase): SaleMemoryRepository {
   const saleMemoryEpisodeColumns = {
     assistantResponse: saleMemoryEpisodes.assistantResponse,
+    confidence: saleMemoryEpisodes.confidence,
     createdAt: saleMemoryEpisodes.createdAt,
     id: saleMemoryEpisodes.id,
     orderId: saleMemoryEpisodes.orderId,
@@ -76,6 +78,7 @@ export function NewSaleMemoryRepository(db: DrizzleDatabase): SaleMemoryReposito
     options: SearchSaleMemoryEpisodesOptions = {},
   ): Promise<Result<SaleMemoryEpisodeSearchResult[]>> {
     const distance = cosineDistance(saleMemoryEpisodes.embedding, embedding);
+    const minConfidence = options.minConfidence ?? 0.35;
     let episodeRecords: unknown[];
 
     try {
@@ -86,9 +89,12 @@ export function NewSaleMemoryRepository(db: DrizzleDatabase): SaleMemoryReposito
         })
         .from(saleMemoryEpisodes)
         .where(
-          options.excludeSessionId === undefined
-            ? undefined
-            : ne(saleMemoryEpisodes.sessionId, options.excludeSessionId),
+          and(
+            gte(saleMemoryEpisodes.confidence, minConfidence),
+            options.excludeSessionId === undefined
+              ? undefined
+              : ne(saleMemoryEpisodes.sessionId, options.excludeSessionId),
+          ),
         )
         .orderBy(distance)
         .limit(options.limit ?? 4);

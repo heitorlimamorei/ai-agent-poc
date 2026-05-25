@@ -29,6 +29,10 @@ describe("sale routes", () => {
     expect(await saleSuite.countSaleSessions()).toBe(1);
     expect(await saleSuite.countSaleMessages()).toBe(2);
     expect(await saleSuite.countSaleMemoryEpisodes()).toBe(1);
+
+    const [memoryEpisode] = await saleSuite.getSaleMemoryEpisodes();
+
+    expect(memoryEpisode?.confidence).toBe(0.35);
   });
 
   test("continues a session with history and ends it when an order is created", async () => {
@@ -57,6 +61,7 @@ describe("sale routes", () => {
     const [, orderMemoryEpisode] = await saleSuite.getSaleMemoryEpisodes();
     const [toolCall] = z.array(persistedToolCallSchema).parse(orderMemoryEpisode?.toolCalls);
 
+    expect(orderMemoryEpisode?.confidence).toBe(1);
     expect(toolCall?.toolName).toBe("createOrder");
     expect(toolCall?.output).toMatchObject({
       ok: true,
@@ -105,6 +110,7 @@ describe("sale routes", () => {
     }
 
     expect(memoryMessage.content).toContain("Memorias episodicas");
+    expect(memoryMessage.content).toContain("confianca");
     expect(memoryMessage.content).toContain("Procuro um tenis para correr");
   });
 });

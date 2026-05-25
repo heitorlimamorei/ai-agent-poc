@@ -92,6 +92,7 @@ export const saleMemoryEpisodes = pgTable(
     assistantResponse: text("assistant_response").notNull(),
     orderId: uuid("order_id").references(() => orders.id),
     toolCalls: jsonb("tool_calls").notNull(),
+    confidence: real("confidence").notNull(),
     embedding: vector("embedding", { dimensions: 1536 }).notNull(),
     createdAt: timestamp("created_at", {
       mode: "string",
@@ -106,5 +107,9 @@ export const saleMemoryEpisodes = pgTable(
       table.embedding.op("vector_cosine_ops"),
     ),
     index("sale_memory_episodes_session_idx").on(table.sessionId),
+    check(
+      "sale_memory_episodes_confidence_check",
+      sql`${table.confidence} >= 0 and ${table.confidence} <= 1`,
+    ),
   ],
 );

@@ -54,6 +54,7 @@ export const saleMemoryEpisodeSchema = z.object({
   assistantResponse: z.string().min(1),
   orderId: z.uuid().nullable(),
   toolCalls: z.array(saleMemoryToolCallSchema),
+  confidence: z.number().min(0).max(1),
   createdAt: timestampSchema,
 });
 
@@ -90,7 +91,7 @@ function normalizeMemoryText(text: string): string {
 export function saleMemoryEpisodeEmbeddingText(
   episode: Pick<
     NewSaleMemoryEpisode,
-    "assistantResponse" | "orderId" | "toolCalls" | "userMessage"
+    "assistantResponse" | "confidence" | "orderId" | "toolCalls" | "userMessage"
   >,
 ): string {
   const toolNames = [...new Set(episode.toolCalls.map((toolCall) => toolCall.toolName))];
@@ -100,6 +101,7 @@ export function saleMemoryEpisodeEmbeddingText(
     `customer: ${normalizeMemoryText(episode.userMessage)}`,
     `agent: ${normalizeMemoryText(episode.assistantResponse)}`,
     `tools: ${toolNames.length === 0 ? "none" : toolNames.join(", ")}`,
+    `confidence: ${episode.confidence.toFixed(2)}`,
     `outcome: ${episode.orderId === null ? "conversation_continued" : "order_created"}`,
   ].join("\n");
 }
@@ -195,6 +197,7 @@ export function newSaleMemoryEpisodeToRecord(
 
   return ok({
     assistantResponse: result.data.assistantResponse,
+    confidence: result.data.confidence,
     embedding: result.data.embedding,
     orderId: result.data.orderId,
     sessionId: result.data.sessionId,

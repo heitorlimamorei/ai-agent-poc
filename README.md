@@ -56,6 +56,26 @@ Esse agente e usado pelos endpoints de sessoes de venda:
 - `POST /sales`
 - `POST /sales/:sessionId/messages`
 
+### Memoria Episodica Do Agente De Texto
+
+O agente de texto mantem dois tipos de persistencia para conversas de venda:
+
+- `sale_messages`: log bruto e ordenado das mensagens da sessao atual.
+- `sale_memory_episodes`: memoria episodica recuperavel por embedding.
+
+Cada episodio representa um turno relevante da conversa e salva:
+
+- mensagem do cliente;
+- resposta do agente;
+- `tool_calls` em JSON, incluindo resultados de tools como busca de produto e criacao de pedido;
+- `order_id`, quando o turno criou um pedido;
+- `embedding` do episodio para busca semantica;
+- `confidence`, uma metrica operacional entre `0` e `1`.
+
+Antes de gerar uma resposta, o `SaleService` cria embedding da nova mensagem do cliente, busca episodios parecidos em sessoes anteriores com pgvector e injeta um contexto `system` com as memorias mais relevantes. Esse contexto e usado como apoio de estrategia e padroes recorrentes, mas as instrucoes avisam o agente para nao tratar dados pessoais, nomes, confirmacoes ou promessas de atendimentos antigos como fatos do cliente atual.
+
+O campo `confidence` indica quao util/confiavel o episodio e como memoria operacional. Ele e calculado por sinais objetivos do turno, como uso de tool, sucesso da tool, pedido criado e respostas de clarificacao. A recuperacao pode filtrar por `minConfidence` para reduzir memorias ambiguas.
+
 ### Agente De Voz
 
 O agente de voz usa uma separacao em quatro partes:
