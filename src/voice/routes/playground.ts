@@ -589,6 +589,10 @@ const sellerVoicePlaygroundHtml = `<!doctype html>
           return;
         }
 
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error("Navegador não suporta a API de áudio ou a página não foi carregada em contexto seguro (HTTPS ou localhost).");
+        }
+
         const context = await ensureAudioContext();
         mediaStream = await navigator.mediaDevices.getUserMedia({
           audio: {
