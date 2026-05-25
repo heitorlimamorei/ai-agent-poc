@@ -11,10 +11,13 @@ import { NewVoiceAgent } from "../voice/agents/index.ts";
 import type { VoiceAudioFormat } from "../voice/channels/index.ts";
 import {
   OpenAiRealtimeVoiceAgent,
+  type RealtimeReasoningEffort,
   type RealtimeTurnDetection,
   type RealtimeTurnDetectionType,
   type RealtimeVoiceAgent,
 } from "../voice/realtime/index.ts";
+
+const defaultReasoningEffort: RealtimeReasoningEffort = "low";
 
 const defaultTurnDetection: RealtimeTurnDetection = {
   eagerness: "low",
@@ -24,6 +27,7 @@ const defaultTurnDetection: RealtimeTurnDetection = {
 type OpenAiRealtimeTurnDetectionOption = RealtimeTurnDetection | RealtimeTurnDetectionType;
 
 export interface NewOpenAiRealtimeAgentOptions extends VoiceAgentProfile {
+  readonly reasoningEffort?: RealtimeReasoningEffort;
   readonly turnDetection?: OpenAiRealtimeTurnDetectionOption;
 }
 
@@ -32,6 +36,7 @@ export interface NewOpenAiRealtimeVoiceAgentOptions extends NewVoiceRealtimeAgen
   readonly outputAudioFormat?: VoiceAudioFormat;
   readonly instructions?: string;
   readonly model?: string;
+  readonly reasoningEffort?: RealtimeReasoningEffort;
   readonly tools?: AiToolKit;
   readonly turnDetection?: OpenAiRealtimeTurnDetectionOption;
   readonly voice?: string;
@@ -42,6 +47,7 @@ export type OpenAiRealtimeAgent = VoiceAgent;
 export interface OpenAiRealtimeAdapter {
   newAgent(options: NewOpenAiRealtimeAgentOptions): OpenAiRealtimeAgent;
   newModel(options?: {
+    readonly reasoningEffort?: RealtimeReasoningEffort;
     readonly turnDetection?: OpenAiRealtimeTurnDetectionOption;
   }): VoiceModelAdapter;
 }
@@ -74,6 +80,12 @@ export function NewOpenAiRealtimeAdapter(config: AppConfig): OpenAiRealtimeAdapt
         instructions: realtimeOptions.instructions ?? agentOptions.instructions,
         model: realtimeOptions.model ?? agentOptions.model ?? config.OPENAI_REALTIME_MODEL,
         outputAudioFormat,
+        reasoning: {
+          effort:
+            realtimeOptions.reasoningEffort ??
+            agentOptions.reasoningEffort ??
+            defaultReasoningEffort,
+        },
         tools: toRealtimeTools(tools),
         turnDetection:
           normalizeTurnDetection(realtimeOptions.turnDetection) ??
@@ -96,6 +108,10 @@ export function NewOpenAiRealtimeAdapter(config: AppConfig): OpenAiRealtimeAdapt
         Object.assign(profile, { model: options.model });
       }
 
+      if (options.reasoningEffort !== undefined) {
+        Object.assign(profile, { reasoningEffort: options.reasoningEffort });
+      }
+
       if (options.voice !== undefined) {
         Object.assign(profile, { voice: options.voice });
       }
@@ -116,6 +132,10 @@ export function NewOpenAiRealtimeAdapter(config: AppConfig): OpenAiRealtimeAdapt
 
           if (options.turnDetection !== undefined) {
             Object.assign(agentOptions, { turnDetection: options.turnDetection });
+          }
+
+          if (options.reasoningEffort !== undefined) {
+            Object.assign(agentOptions, { reasoningEffort: options.reasoningEffort });
           }
 
           return newVoiceAgent(agentOptions, realtimeOptions);

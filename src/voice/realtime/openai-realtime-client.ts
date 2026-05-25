@@ -41,11 +41,13 @@ const transcriptDeltaEventSchema = z.object({
 });
 
 const transcriptDoneEventSchema = z.object({
+  item_id: z.string().optional(),
   transcript: z.string(),
   type: z.string(),
 });
 
 const outputTextDoneEventSchema = z.object({
+  item_id: z.string().optional(),
   text: z.string(),
   type: z.string(),
 });
@@ -99,11 +101,16 @@ export type RealtimeTurnDetection =
 
 export type RealtimeTurnDetectionType = RealtimeTurnDetection["type"];
 
+export type RealtimeReasoningEffort = "high" | "low" | "medium" | "minimal" | "xhigh";
+
 export interface OpenAiRealtimeSessionConfig {
   readonly inputAudioFormat: VoiceAudioFormat;
   readonly instructions: string;
   readonly model: string;
   readonly outputAudioFormat: VoiceAudioFormat;
+  readonly reasoning?: {
+    readonly effort: RealtimeReasoningEffort;
+  };
   readonly tools: readonly RealtimeFunctionTool[];
   readonly turnDetection: RealtimeTurnDetection;
   readonly voice: string;
@@ -155,6 +162,7 @@ function toOpenAiTurnDetection(turnDetection: RealtimeTurnDetection): Record<str
 export class OpenAiRealtimeVoiceAgent implements RealtimeVoiceAgent {
   private readonly audioHandlers: RealtimeAudioHandler[] = [];
   private readonly closeHandlers: RealtimeCloseHandler[] = [];
+  private readonly emittedFinalAssistantTranscriptKeys = new Set<string>();
   private readonly errorHandlers: RealtimeErrorHandler[] = [];
   private readonly handledToolCallIds = new Set<string>();
   private readonly options: OpenAiRealtimeVoiceClientOptions;
@@ -255,6 +263,7 @@ export class OpenAiRealtimeVoiceAgent implements RealtimeVoiceAgent {
   }
 
   createResponse(): void {
+    this.emittedFinalAssistantTranscriptKeys.clear();
     this.sendEvent({
       response: {
         output_modalities: ["audio"],
@@ -335,6 +344,7 @@ export class OpenAiRealtimeVoiceAgent implements RealtimeVoiceAgent {
         instructions: session.instructions,
         model: session.model,
         output_modalities: ["audio"],
+        reasoning: session.reasoning,
         tools: session.tools,
         tool_choice: "auto",
         type: "realtime",
@@ -403,6 +413,21 @@ export class OpenAiRealtimeVoiceAgent implements RealtimeVoiceAgent {
     }
   }
 
+  private async emitFinalAssistantTranscript(
+    itemId: string | undefined,
+    text: string,
+  ): Promise<void> {
+    const normalizedText = text.trim().replaceAll(/\s+/g, " ");
+    const key = `${itemId ?? "text"}:${normalizedText}`;
+
+    if (this.emittedFinalAssistantTranscriptKeys.has(key)) {
+      return;
+    }
+
+    this.emittedFinalAssistantTranscriptKeys.add(key);
+    await this.emitTranscript("assistant", text);
+  }
+
   private flushPendingEvents(): void {
     const events = [...this.pendingEvents];
     this.pendingEvents.length = 0;
@@ -442,12 +467,15 @@ export class OpenAiRealtimeVoiceAgent implements RealtimeVoiceAgent {
       case "response.audio_transcript.done":
       case "response.output_audio_transcript.done": {
         const transcriptEvent = transcriptDoneEventSchema.parse(parsedJson);
-        await this.emitTranscript("assistant", transcriptEvent.transcript);
+        await this.emitFinalAssistantTranscript(
+          transcriptEvent.item_id,
+          transcriptEvent.transcript,
+        );
         return;
       }
       case "response.output_text.done": {
         const transcriptEvent = outputTextDoneEventSchema.parse(parsedJson);
-        await this.emitTranscript("assistant", transcriptEvent.text);
+        await this.emitFinalAssistantTranscript(transcriptEvent.item_id, transcriptEvent.text);
         return;
       }
       case "response.function_call_arguments.done": {

@@ -11,7 +11,7 @@ export type SellerAgent = Agent<never, SellerTools>;
 
 export interface SellerAgentDependencies {
   readonly newAgent: NewAgent;
-  readonly orderService: Pick<OrderService, "create">;
+  readonly orderService: Pick<OrderService, "create" | "update">;
   readonly productService: Pick<ProductService, "list">;
 }
 
@@ -27,8 +27,11 @@ Behavior:
 - If no product is a good match, ask one concise clarifying question.
 - When products are found, choose the strongest match first and explain why it fits the customer's need.
 - Create an order only after the customer explicitly confirms they want to buy a specific product.
-- Before creating an order, make sure you have the customer's name and the selected product id from the tool result.
+- Before creating an order, make sure you have the customer's confirmed name and the selected product id from the tool result.
+- When using createOrder, set customerNameConfirmed to true only after the customer confirms the full name.
 - After creating an order, confirm the sale and mention the order creation time.
+- If the customer notices a mistake after an order is created, confirm the corrected name or product before updating the order.
+- When using updateOrder, set correctionConfirmed to true only after the customer confirms the final correction.
 - Be persuasive, concise, and helpful. Emphasize concrete value from the product description and ad value when relevant.
 - Include the product URL when recommending a product so the customer can continue to purchase.
 - Use Brazilian Portuguese by default. If the customer clearly writes in another language, switch to that language and continue consistently in it.`;
@@ -46,6 +49,7 @@ export function NewSellerAgent(dependencies: SellerAgentDependencies): SellerAge
     tools: {
       createOrder: toVercelAiTool(sellerToolKit.createOrder),
       findProducts: toVercelAiTool(sellerToolKit.findProducts),
+      updateOrder: toVercelAiTool(sellerToolKit.updateOrder),
     },
   });
 

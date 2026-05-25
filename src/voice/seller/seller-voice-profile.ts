@@ -24,7 +24,7 @@ export interface SellerVoiceAgentProfile extends VoiceAgentProfile {
 }
 
 export interface SellerVoiceAgentProfileDependencies {
-  readonly orderService: Pick<OrderService, "create">;
+  readonly orderService: Pick<OrderService, "create" | "update">;
   readonly productService: Pick<ProductService, "list">;
 }
 

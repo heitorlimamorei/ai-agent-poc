@@ -62,10 +62,11 @@ export async function NewApp(): Promise<App> {
   const routes = NewRoutes(productService, orderService, saleService);
 
   const voiceModel = adpters.openAiRealtime.newModel({
+    reasoningEffort: "low",
     turnDetection: {
-      prefixPaddingMs: 300,
-      silenceDurationMs: 900,
-      threshold: 0.75,
+      prefixPaddingMs: 250,
+      silenceDurationMs: 650,
+      threshold: 0.65,
       type: "server_vad",
     },
   });

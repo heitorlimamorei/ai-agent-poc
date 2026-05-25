@@ -748,7 +748,10 @@ const sellerVoicePlaygroundHtml = `<!doctype html>
       }
 
       async function connect() {
-        if (socket && socket.readyState === WebSocket.OPEN) {
+        if (
+          socket &&
+          (socket.readyState === WebSocket.CONNECTING || socket.readyState === WebSocket.OPEN)
+        ) {
           return;
         }
 
