@@ -80,3 +80,31 @@ export const saleMessages = pgTable(
   },
   (table) => [index("sale_messages_session_sequence_idx").on(table.sessionId, table.sequence)],
 );
+
+export const saleMemoryEpisodes = pgTable(
+  "sale_memory_episodes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => saleSessions.id),
+    userMessage: text("user_message").notNull(),
+    assistantResponse: text("assistant_response").notNull(),
+    orderId: uuid("order_id").references(() => orders.id),
+    toolCalls: jsonb("tool_calls").notNull(),
+    embedding: vector("embedding", { dimensions: 1536 }).notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("sale_memory_episodes_embedding_idx").using(
+      "hnsw",
+      table.embedding.op("vector_cosine_ops"),
+    ),
+    index("sale_memory_episodes_session_idx").on(table.sessionId),
+  ],
+);

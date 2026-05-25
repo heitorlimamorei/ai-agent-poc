@@ -1,8 +1,15 @@
 import type { ModelMessage } from "ai";
 
+import type { CreateEmbedding } from "../adpters/ai.ts";
 import type { SellerAgent } from "../ai/agents/index.ts";
 import { createOrderToolOutputSchema } from "../ai/tools/index.ts";
-import type { SaleSession } from "../entities/index.ts";
+import {
+  type SaleMemoryEpisodeSearchResult,
+  type SaleMemoryToolCall,
+  type SaleSession,
+  saleMemoryEpisodeEmbeddingText,
+  saleMemorySearchEmbeddingText,
+} from "../entities/index.ts";
 import type { SaleRepository } from "../repositories/index.ts";
 import { err, ok, type Result } from "../utils/result.ts";
 
@@ -25,7 +32,12 @@ export interface SaleService {
   startSession: (request: SaleServiceRequest) => Promise<Result<SaleServiceResponse>>;
 }
 
+export interface SaleAi {
+  readonly createEmbedding: CreateEmbedding;
+}
+
 export interface SaleServiceDependencies {
+  readonly ai: SaleAi;
   readonly saleRepository: SaleRepository;
   readonly sellerAgent: SellerAgent;
 }
@@ -72,17 +84,144 @@ function validateRequest(request: SaleServiceRequest): Result<SaleServiceRequest
   return ok({ message });
 }
 
+function compactMemoryText(text: string, maxLength = 500): string {
+  const compacted = text.trim().replaceAll(/\s+/g, " ");
+
+  if (compacted.length <= maxLength) {
+    return compacted;
+  }
+
+  return `${compacted.slice(0, maxLength - 3)}...`;
+}
+
+function jsonSafeValue(value: unknown): unknown {
+  if (value === undefined) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(JSON.stringify(value)) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function toolCallsFromResult(
+  result: Awaited<ReturnType<SellerAgent["generate"]>>,
+): SaleMemoryToolCall[] {
+  const toolCalls: SaleMemoryToolCall[] = [];
+
+  result.steps.forEach((step, index) => {
+    for (const toolResult of step.toolResults) {
+      toolCalls.push({
+        input: null,
+        output: jsonSafeValue(toolResult.output),
+        step: index,
+        toolName: toolResult.toolName,
+      });
+    }
+  });
+
+  return toolCalls;
+}
+
+function memorySystemMessage(episodes: readonly SaleMemoryEpisodeSearchResult[]): ModelMessage {
+  const memoryLines = episodes.map((episode, index) => {
+    const orderStatus =
+      episode.orderId === null ? "sem pedido criado" : `pedido ${episode.orderId}`;
+    const episodeNumber = (index + 1).toString();
+    const toolNames = [...new Set(episode.toolCalls.map((toolCall) => toolCall.toolName))];
+
+    return [
+      `Episodio ${episodeNumber} - similaridade ${episode.score.toFixed(2)} (${orderStatus})`,
+      `Cliente: ${compactMemoryText(episode.userMessage)}`,
+      `Agente: ${compactMemoryText(episode.assistantResponse)}`,
+      `Ferramentas: ${toolNames.length === 0 ? "nenhuma" : toolNames.join(", ")}`,
+    ].join("\n");
+  });
+
+  return {
+    content: [
+      "Memorias episodicas recuperadas de atendimentos anteriores semanticamente parecidos.",
+      "Use como contexto de estrategia, preferencias recorrentes e continuidade comercial quando fizer sentido.",
+      "Nao trate nomes, confirmacoes, promessas, estoque ou dados pessoais de outros atendimentos como fatos do cliente atual.",
+      "",
+      ...memoryLines,
+    ].join("\n"),
+    role: "system",
+  };
+}
+
 export function NewSaleService(dependencies: SaleServiceDependencies): SaleService {
-  const { saleRepository, sellerAgent } = dependencies;
+  const { ai, saleRepository, sellerAgent } = dependencies;
+
+  async function retrievedMemoryMessage(
+    sessionId: string,
+    currentUserMessage: string,
+  ): Promise<ModelMessage | null> {
+    const [embedding, embeddingFailure] = await ai.createEmbedding(
+      saleMemorySearchEmbeddingText(currentUserMessage),
+    );
+
+    if (embeddingFailure !== null) {
+      return null;
+    }
+
+    const [episodes, searchFailure] = await saleRepository.searchMemoryEpisodes(embedding, {
+      excludeSessionId: sessionId,
+      limit: 4,
+    });
+
+    if (searchFailure !== null || episodes.length === 0) {
+      return null;
+    }
+
+    return memorySystemMessage(episodes);
+  }
+
+  async function rememberEpisode(
+    sessionId: string,
+    userText: string,
+    assistantText: string,
+    orderId: string | null,
+    toolCalls: readonly SaleMemoryToolCall[],
+  ): Promise<void> {
+    const episode = {
+      assistantResponse: assistantText,
+      orderId,
+      sessionId,
+      toolCalls: [...toolCalls],
+      userMessage: userText,
+    };
+
+    const [embedding, embeddingFailure] = await ai.createEmbedding(
+      saleMemoryEpisodeEmbeddingText(episode),
+    );
+
+    if (embeddingFailure !== null) {
+      return;
+    }
+
+    const [, memoryFailure] = await saleRepository.createMemoryEpisode({
+      ...episode,
+      embedding,
+    });
+
+    void memoryFailure;
+  }
 
   async function runAgent(
     session: SaleSession,
     messages: ModelMessage[],
+    currentUserMessage: string,
   ): Promise<Result<SaleServiceResponse>> {
     let result: Awaited<ReturnType<SellerAgent["generate"]>>;
 
     try {
-      result = await sellerAgent.generate({ messages });
+      const memoryMessage = await retrievedMemoryMessage(session.id, currentUserMessage);
+      const agentMessages = memoryMessage === null ? messages : [memoryMessage, ...messages];
+
+      result = await sellerAgent.generate({ messages: agentMessages });
     } catch (error) {
       return err({
         cause: error,
@@ -117,6 +256,14 @@ export function NewSaleService(dependencies: SaleServiceDependencies): SaleServi
       finalSession = endedSession;
     }
 
+    await rememberEpisode(
+      session.id,
+      currentUserMessage,
+      result.text,
+      createdOrderId,
+      toolCallsFromResult(result),
+    );
+
     return ok({
       endedAt: finalSession.endedAt,
       orderId: finalSession.orderId,
@@ -145,7 +292,7 @@ export function NewSaleService(dependencies: SaleServiceDependencies): SaleServi
       return err(appendFailure);
     }
 
-    return runAgent(session, messages);
+    return runAgent(session, messages, validRequest.message);
   }
 
   async function continueSession(
@@ -186,7 +333,7 @@ export function NewSaleService(dependencies: SaleServiceDependencies): SaleServi
       return err(appendFailure);
     }
 
-    return runAgent(session, [...history, newUserMessage]);
+    return runAgent(session, [...history, newUserMessage], validRequest.message);
   }
 
   return { continueSession, startSession };

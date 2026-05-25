@@ -55,6 +55,7 @@ export async function NewApp(): Promise<App> {
     productService,
   });
   const saleService = NewSaleService({
+    ai: adpters.ai,
     saleRepository,
     sellerAgent,
   });

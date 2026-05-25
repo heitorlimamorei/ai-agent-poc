@@ -16,6 +16,7 @@ const migrationFiles = [
   "0003_use_openai_product_embedding.sql",
   "0004_peaceful_songbird.sql",
   "0005_giant_swordsman.sql",
+  "0006_add_sale_memory_episodes.sql",
 ];
 
 export interface IntegrationSuite {

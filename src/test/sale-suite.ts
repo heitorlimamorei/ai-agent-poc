@@ -19,11 +19,14 @@ import { createProductPayload, FakeProductAi } from "./product-suite.ts";
 
 export interface SaleRouteTestSuite {
   readonly app: () => ReturnType<typeof NewRoutes>;
+  readonly generatedMessageBatches: () => readonly ModelMessage[][];
   readonly countOrders: () => Promise<number>;
+  readonly countSaleMemoryEpisodes: () => Promise<number>;
   readonly countSaleMessages: () => Promise<number>;
   readonly countSaleSessions: () => Promise<number>;
   readonly createProduct: () => Promise<string>;
   readonly getEndedSessions: () => Promise<{ endedAt: string | null; orderId: string | null }[]>;
+  readonly getSaleMemoryEpisodes: () => Promise<{ orderId: string | null; toolCalls: unknown }[]>;
   readonly postSaleMessage: (sessionId: string, message: string) => Promise<Response>;
   readonly postStartSale: (message: string) => Promise<Response>;
 }
@@ -46,12 +49,18 @@ function lastUserMessage(messages: readonly ModelMessage[]): string {
   return typeof lastMessage.content === "string" ? lastMessage.content : "";
 }
 
-function newFakeSellerAgent(orderService: OrderService, productId: string): SellerAgent {
+function newFakeSellerAgent(
+  orderService: OrderService,
+  productId: string,
+  generatedMessageBatches: ModelMessage[][],
+): SellerAgent {
   return {
     id: "fake-seller-agent",
     tools: {} as SellerTools,
     version: "agent-v1",
     async generate({ messages }) {
+      generatedMessageBatches.push([...(messages ?? [])]);
+
       const userText = lastUserMessage(messages ?? []);
 
       if (userText.toLowerCase().includes("confirmar")) {
@@ -103,31 +112,45 @@ function newFakeSellerAgent(orderService: OrderService, productId: string): Sell
 function newSaleApp(
   integrationSuite: IntegrationSuite,
   selectedProductId: string,
-): ReturnType<typeof NewRoutes> {
+): {
+  readonly ai: FakeProductAi;
+  readonly app: ReturnType<typeof NewRoutes>;
+  readonly generatedMessageBatches: ModelMessage[][];
+} {
   const ai = new FakeProductAi();
+  const generatedMessageBatches: ModelMessage[][] = [];
   const productRepository = NewProductRepository(integrationSuite.db());
   const orderRepository = NewOrderRepository(integrationSuite.db());
   const saleRepository = NewSaleRepository(integrationSuite.db());
   const productService = NewProductService(ai, productRepository);
   const orderService = NewOrderService(orderRepository);
   const saleService = NewSaleService({
+    ai,
     saleRepository,
-    sellerAgent: newFakeSellerAgent(orderService, selectedProductId),
+    sellerAgent: newFakeSellerAgent(orderService, selectedProductId, generatedMessageBatches),
   });
 
-  return NewRoutes(productService, orderService, saleService);
+  return {
+    ai,
+    app: NewRoutes(productService, orderService, saleService),
+    generatedMessageBatches,
+  };
 }
 
 export function NewSaleRouteTestSuite(): SaleRouteTestSuite {
   const integrationSuite = NewIntegrationSuite();
   let app: ReturnType<typeof NewRoutes> | undefined;
+  let generatedMessageBatches: ModelMessage[][] | undefined;
   let selectedProductId: string | undefined;
 
   beforeEach(async () => {
     await integrationSuite.truncateTables(["sale_messages", "sale_sessions", "orders", "products"]);
 
     selectedProductId = crypto.randomUUID();
-    app = newSaleApp(integrationSuite, selectedProductId);
+    const testApp = newSaleApp(integrationSuite, selectedProductId);
+
+    app = testApp.app;
+    generatedMessageBatches = testApp.generatedMessageBatches;
   });
 
   async function postJson(path: string, body: unknown): Promise<Response> {
@@ -144,8 +167,14 @@ export function NewSaleRouteTestSuite(): SaleRouteTestSuite {
     app(): ReturnType<typeof NewRoutes> {
       return requireSuiteValue(app, "Sale app");
     },
+    generatedMessageBatches(): readonly ModelMessage[][] {
+      return requireSuiteValue(generatedMessageBatches, "Generated message batches");
+    },
     async countOrders(): Promise<number> {
       return integrationSuite.countRows("orders");
+    },
+    async countSaleMemoryEpisodes(): Promise<number> {
+      return integrationSuite.countRows("sale_memory_episodes");
     },
     async countSaleMessages(): Promise<number> {
       return integrationSuite.countRows("sale_messages");
@@ -158,7 +187,10 @@ export function NewSaleRouteTestSuite(): SaleRouteTestSuite {
       const body = (await response.json()) as { id: string };
 
       selectedProductId = body.id;
-      app = newSaleApp(integrationSuite, selectedProductId);
+      const testApp = newSaleApp(integrationSuite, selectedProductId);
+
+      app = testApp.app;
+      generatedMessageBatches = testApp.generatedMessageBatches;
 
       return body.id;
     },
@@ -166,6 +198,13 @@ export function NewSaleRouteTestSuite(): SaleRouteTestSuite {
       return await integrationSuite.sql()<{ endedAt: string | null; orderId: string | null }[]>`
         select ended_at as "endedAt", order_id as "orderId"
         from sale_sessions
+      `;
+    },
+    async getSaleMemoryEpisodes(): Promise<{ orderId: string | null; toolCalls: unknown }[]> {
+      return await integrationSuite.sql()<{ orderId: string | null; toolCalls: unknown }[]>`
+        select order_id as "orderId", tool_calls as "toolCalls"
+        from sale_memory_episodes
+        order by created_at
       `;
     },
     async postSaleMessage(sessionId: string, message: string): Promise<Response> {
